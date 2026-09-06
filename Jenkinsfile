@@ -1,22 +1,21 @@
 def appname = "hello-newapp"
-def repo = "hillel456" 
-def appimage = "docker.io/${repo}/${appname}"
+def repo = "hillel456" // שם המשתמש שלך
+def appimage = "${repo}/${appname}"
 def apptag = "${env.BUILD_NUMBER}"
 
-podTemplate(cloud: 'kubernetes', containers: [
-    containerTemplate(
-        name: 'jnlp', 
-        image: 'jenkins/inbound-agent:latest'
-    ),
+podTemplate(containers: [
+    containerTemplate(name: 'jnlp', image: 'jenkins/inbound-agent', ttyEnabled: true),
     containerTemplate(
         name: 'docker', 
         image: 'docker:26-dind',
         privileged: true,
-        args: '--storage-driver=vfs'
-    )], 
+        args: '--storage-driver=vfs --host=tcp://0.0.0.0:2375'
+    )
+  ],
   volumes: [
-    emptyDirVolume(mountPath: '/var/lib/docker', memory: false)
-  ]) {
+    emptyDirVolume(mountPath: '/var/run', memory: false) 
+  ]) 
+  {
     node(POD_LABEL) {
         stage('Checkout') {
             container('jnlp') {
@@ -27,11 +26,11 @@ podTemplate(cloud: 'kubernetes', containers: [
 
         stage('Build & Push') {
             container('docker') {
-                echo "Building Docker image..."
-                sh "docker build -t ${appimage}:${apptag} -t ${appimage}:latest ."
-
-                echo "Pushing Docker image to DockerHub..."
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                echo "Building docker image..."
+                sh "docker build . -t ${appimage}:${apptag} -t ${appimage}:latest"
+                
+                echo "Pushing to DockerHub..."
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', passwordVariable: 'DOCKER_PASS', usernameVariable: 'DOCKER_USER')]) {
                     sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
                     sh "docker push ${appimage}:${apptag}"
                     sh "docker push ${appimage}:latest"
