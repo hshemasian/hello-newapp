@@ -9,7 +9,10 @@ podTemplate(containers: [
         name: 'docker', 
         image: 'docker:26-dind',
         privileged: true,
-        args: '--storage-driver=vfs --host=tcp://0.0.0.0:2375'
+        envVars: [
+            envVar(key: 'DOCKER_TLS_CERTDIR', value: '')
+        ],
+        args: '--storage-driver=vfs'
     ),
     containerTemplate(
         name: 'trivy', 
@@ -45,7 +48,7 @@ podTemplate(containers: [
                 },
                 "Task 2 - Trivy Scan": {
                     container('trivy') {
-                        sh "DOCKER_HOST=tcp://localhost:2375 trivy image --severity HIGH,CRITICAL ${appimage}:${apptag}"
+                        sh "trivy image --severity HIGH,CRITICAL ${appimage}:${apptag}"
                     }
                 }
             )
