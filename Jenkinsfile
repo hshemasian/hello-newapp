@@ -56,7 +56,16 @@ podTemplate(containers: [
                 },
                 "Task 2 - Trivy Scan": {
                     container('trivy') {
-                        sh "trivy image --severity HIGH,CRITICAL ${appimage}:${apptag}"
+                        // 1. יצירת דוח ה-HTML
+                        sh "trivy image --format template --template '@contrib/html.tpl' --output trivy-report.html ${appimage}:${apptag}"
+                    }
+
+                    // 2. שמירת הדוח כ-Artifact לפני בדיקת ההכשלה
+                    archiveArtifacts artifacts: 'trivy-report.html', allowEmptyArchive: true
+
+                    container('trivy') {
+                        // 3. הכשלת השלב אם קיימות חולשות HIGH או CRITICAL
+                        sh "trivy image --exit-code 1 --severity HIGH,CRITICAL ${appimage}:${apptag}"
                     }
                 }
             )
