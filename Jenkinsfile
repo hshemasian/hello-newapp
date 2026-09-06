@@ -1,5 +1,5 @@
 def appname = "hello-newapp"
-def repo = "hillel456" // שם המשתמש שלך
+def repo = "hillel456"
 def appimage = "${repo}/${appname}"
 def apptag = "${env.BUILD_NUMBER}"
 
@@ -10,6 +10,12 @@ podTemplate(containers: [
         image: 'docker:26-dind',
         privileged: true,
         args: '--storage-driver=vfs --host=tcp://0.0.0.0:2375'
+    ),
+    containerTemplate(
+        name: 'trivy', 
+        image: 'aquasec/trivy:latest',
+        ttyEnabled: true,
+        command: 'cat'
     )
   ],
   volumes: [
@@ -24,12 +30,29 @@ podTemplate(containers: [
             }
         }
 
-        stage('Build & Push') {
+        stage('Build') {
             container('docker') {
-                echo "Building docker image..."
                 sh "docker build . -t ${appimage}:${apptag} -t ${appimage}:latest"
-                
-                echo "Pushing to DockerHub..."
+            }
+        }
+
+        stage('Parallel Tasks') {
+            parallel(
+                "Task 1": {
+                    container('jnlp') {
+                        sh "echo 'Running parallel checks...'"
+                    }
+                },
+                "Task 2 - Trivy Scan": {
+                    container('trivy') {
+                        sh "DOCKER_HOST=tcp://localhost:2375 trivy image --severity HIGH,CRITICAL ${appimage}:${apptag}"
+                    }
+                }
+            )
+        }
+
+        stage('Push to DockerHub') {
+            container('docker') {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', passwordVariable: 'DOCKER_PASS', usernameVariable: 'DOCKER_USER')]) {
                     sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
                     sh "docker push ${appimage}:${apptag}"
