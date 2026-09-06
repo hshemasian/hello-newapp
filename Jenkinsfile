@@ -1,7 +1,6 @@
 def appname = "hello-newapp"
 def repo = "hillel456"
 def appimage = "${repo}/${appname}"
-def apptag = "${env.BUILD_NUMBER}"
 
 podTemplate(containers: [
     containerTemplate(name: 'jnlp', image: 'jenkins/inbound-agent', ttyEnabled: true),
@@ -27,6 +26,8 @@ podTemplate(containers: [
   ]
 ) {
     node(POD_LABEL) {
+        def apptag = "${env.BUILD_NUMBER}"
+
         stage('Checkout') {
             container('jnlp') {
                 sh '/usr/bin/git config --global http.sslVerify false'
@@ -36,13 +37,13 @@ podTemplate(containers: [
 
         stage('Build') {
             container('docker') {
-                sh '''
+                sh """
                     until docker info > /dev/null 2>&1; do
                         echo "Waiting for Docker daemon..."
                         sleep 1
                     done
                     docker build . -t ${appimage}:${apptag} -t ${appimage}:latest
-                '''
+                """
             }
         }
 
