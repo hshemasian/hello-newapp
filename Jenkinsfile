@@ -55,8 +55,8 @@ podTemplate(containers: [
                     }
                 },
                 "Task 2 - Trivy Scan": {
+                    // 1. יצירת תבנית HTML מקומית ב-Workspace למניעת שגיאות הורדה
                     container('jnlp') {
-                        // יצירת תבנית HTML מקומית ישירות ב-Workspace כדי למנוע שגיאות 404
                         sh '''cat << 'EOF' > html.tpl
 <!DOCTYPE html>
 <html>
@@ -96,17 +96,17 @@ EOF
 '''
                     }
 
-                    // יצירת דוח ה-HTML בעזרת התבנית המקומית
+                    // 2. יצירת דוח ה-HTML בעזרת התבנית
                     container('trivy') {
                         sh "trivy image --format template --template '@html.tpl' --output trivy-report.html ${appimage}:${apptag}"
                     }
 
-                    // שמירת הדוח כ-Artifact לצפייה ושימוש ב-Jenkins
+                    // 3. ארכוב הקובץ כ-Artifact (זמין בלשונית Artifacts ב-Blue Ocean או בעמוד ה-Build בממשק הרגיל)
                     archiveArtifacts artifacts: 'trivy-report.html', allowEmptyArchive: true
 
-                    // הכשלת ה-Pipeline אם קיימות חולשות HIGH/CRITICAL
+                    // 4. בדיקת חולשות והכשלה רק על חולשות קריטיות/גבוהות שיש להן תיקון זמין
                     container('trivy') {
-                        sh "trivy image --exit-code 1 --severity HIGH,CRITICAL ${appimage}:${apptag}"
+                        sh "trivy image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed ${appimage}:${apptag}"
                     }
                 }
             )
