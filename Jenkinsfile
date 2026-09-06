@@ -55,16 +55,21 @@ podTemplate(containers: [
                     }
                 },
                 "Task 2 - Trivy Scan": {
-                    container('trivy') {
-                        // 1. יצירת דוח בפורמט JSON מובנה (ללא צורך בקבצי תבנית)
-                        sh "trivy image --format json --output trivy-report.json ${appimage}:${apptag}"
+                    // 1. הורדת תבנית ה-HTML דרך קונטיינר jnlp (שכולל curl) לתוך ה-Workspace
+                    container('jnlp') {
+                        sh 'curl -sSL https://raw.githubusercontent.com/aquasec/trivy/main/contrib/html.tpl -o html.tpl'
                     }
 
-                    // 2. שמירת הדוח כ-Artifact ב-Jenkins לפני בדיקת ההכשלה
-                    archiveArtifacts artifacts: 'trivy-report.json', allowEmptyArchive: true
-
+                    // 2. יצירת דוח HTML מעוצב
                     container('trivy') {
-                        // 3. הכשלת השלב אם קיימות חולשות HIGH או CRITICAL
+                        sh "trivy image --format template --template '@html.tpl' --output trivy-report.html ${appimage}:${apptag}"
+                    }
+
+                    // 3. שמירת דוח ה-HTML כ-Artifact ב-Jenkins לצפייה בדפדפן
+                    archiveArtifacts artifacts: 'trivy-report.html', allowEmptyArchive: true
+
+                    // 4. הכשלת ה-Pipeline במידה ונמצאו חולשות ברמת HIGH או CRITICAL
+                    container('trivy') {
                         sh "trivy image --exit-code 1 --severity HIGH,CRITICAL ${appimage}:${apptag}"
                     }
                 }
