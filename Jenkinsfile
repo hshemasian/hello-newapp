@@ -1,5 +1,5 @@
 def appname = "hello-newapp"
-def repo = "hillel456" // שם המשתמש שלך ב-DockerHub
+def repo = "hillel456" 
 def appimage = "docker.io/${repo}/${appname}"
 def apptag = "${env.BUILD_NUMBER}"
 
@@ -31,7 +31,6 @@ podTemplate(cloud: 'kubernetes', containers: [
                 sh "docker build -t ${appimage}:${apptag} -t ${appimage}:latest ."
 
                 echo "Pushing Docker image to DockerHub..."
-                // התחברות ודחיפה באמצעות Credentials מ-Jenkins
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
                     sh "docker push ${appimage}:${apptag}"
