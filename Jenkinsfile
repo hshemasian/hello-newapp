@@ -10,7 +10,8 @@ podTemplate(containers: [
         image: 'docker:26-dind',
         privileged: true,
         envVars: [
-            envVar(key: 'DOCKER_TLS_CERTDIR', value: '')
+            envVar(key: 'DOCKER_TLS_CERTDIR', value: ''),
+            envVar(key: 'DOCKER_HOST', value: 'tcp://localhost:2375')
         ],
         args: '--storage-driver=vfs'
     ),
@@ -18,13 +19,13 @@ podTemplate(containers: [
         name: 'trivy', 
         image: 'aquasec/trivy:latest',
         ttyEnabled: true,
-        command: 'cat'
+        command: 'cat',
+        envVars: [
+            envVar(key: 'DOCKER_HOST', value: 'tcp://localhost:2375')
+        ]
     )
-  ],
-  volumes: [
-    emptyDirVolume(mountPath: '/var/run', memory: false) 
-  ]) 
-  {
+  ]
+) {
     node(POD_LABEL) {
         stage('Checkout') {
             container('jnlp') {
@@ -35,7 +36,13 @@ podTemplate(containers: [
 
         stage('Build') {
             container('docker') {
-                sh "docker build . -t ${appimage}:${apptag} -t ${appimage}:latest"
+                sh '''
+                    until docker info > /dev/null 2>&1; do
+                        echo "Waiting for Docker daemon..."
+                        sleep 1
+                    done
+                    docker build . -t ${appimage}:${apptag} -t ${appimage}:latest
+                '''
             }
         }
 
