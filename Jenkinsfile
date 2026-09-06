@@ -56,12 +56,12 @@ podTemplate(containers: [
                 },
                 "Task 2 - Trivy Scan": {
                     container('trivy') {
-                        // 1. יצירת דוח ה-HTML
-                        sh "trivy image --format template --template '@contrib/html.tpl' --output trivy-report.html ${appimage}:${apptag}"
+                        // 1. יצירת דוח בפורמט JSON מובנה (ללא צורך בקבצי תבנית)
+                        sh "trivy image --format json --output trivy-report.json ${appimage}:${apptag}"
                     }
 
-                    // 2. שמירת הדוח כ-Artifact לפני בדיקת ההכשלה
-                    archiveArtifacts artifacts: 'trivy-report.html', allowEmptyArchive: true
+                    // 2. שמירת הדוח כ-Artifact ב-Jenkins לפני בדיקת ההכשלה
+                    archiveArtifacts artifacts: 'trivy-report.json', allowEmptyArchive: true
 
                     container('trivy') {
                         // 3. הכשלת השלב אם קיימות חולשות HIGH או CRITICAL
