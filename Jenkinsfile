@@ -55,20 +55,56 @@ podTemplate(containers: [
                     }
                 },
                 "Task 2 - Trivy Scan": {
-                    // 1. הורדת תבנית ה-HTML דרך קונטיינר jnlp (שכולל curl) לתוך ה-Workspace
                     container('jnlp') {
-                        sh 'curl -sSL https://raw.githubusercontent.com/aquasec/trivy/main/contrib/html.tpl -o html.tpl'
+                        // יצירת תבנית HTML מקומית ישירות ב-Workspace כדי למנוע שגיאות 404
+                        sh '''cat << 'EOF' > html.tpl
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Trivy Vulnerability Report</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f6f9; }
+    h1 { color: #333; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #fff; }
+    th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+    th { background-color: #343a40; color: white; }
+    .HIGH { background-color: #ffc107; font-weight: bold; }
+    .CRITICAL { background-color: #dc3545; color: white; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Trivy Vulnerability Report</h1>
+  <table>
+    <tr><th>Target</th><th>Library</th><th>Vulnerability</th><th>Severity</th><th>Installed</th><th>Fixed Version</th></tr>
+    {{ range . }}
+      {{ range .Vulnerabilities }}
+      <tr>
+        <td>{{ $.Target }}</td>
+        <td>{{ .PkgName }}</td>
+        <td><a href="{{ .PrimaryURL }}" target="_blank">{{ .VulnerabilityID }}</a></td>
+        <td class="{{ .Severity }}">{{ .Severity }}</td>
+        <td>{{ .InstalledVersion }}</td>
+        <td>{{ .FixedVersion }}</td>
+      </tr>
+      {{ end }}
+    {{ end }}
+  </table>
+</body>
+</html>
+EOF
+'''
                     }
 
-                    // 2. יצירת דוח HTML מעוצב
+                    // יצירת דוח ה-HTML בעזרת התבנית המקומית
                     container('trivy') {
                         sh "trivy image --format template --template '@html.tpl' --output trivy-report.html ${appimage}:${apptag}"
                     }
 
-                    // 3. שמירת דוח ה-HTML כ-Artifact ב-Jenkins לצפייה בדפדפן
+                    // שמירת הדוח כ-Artifact לצפייה ושימוש ב-Jenkins
                     archiveArtifacts artifacts: 'trivy-report.html', allowEmptyArchive: true
 
-                    // 4. הכשלת ה-Pipeline במידה ונמצאו חולשות ברמת HIGH או CRITICAL
+                    // הכשלת ה-Pipeline אם קיימות חולשות HIGH/CRITICAL
                     container('trivy') {
                         sh "trivy image --exit-code 1 --severity HIGH,CRITICAL ${appimage}:${apptag}"
                     }
