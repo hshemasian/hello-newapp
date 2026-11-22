@@ -1,19 +1,19 @@
 // GitOps flow: build the image (docker-in-docker), push tags <BUILD_NUMBER> + latest,
 // render the Helm chart, and commit the rendered manifests to
-//   https://github.com/elevy99927-demos/gitops  ->  systems/<DEPARTMENT>/<ENV>/<user>.yaml
+//   https://github.com/elevy99927-demos/gitops  ->  systems/<DEPARTMENT>/<ENV>/<appname>.yaml
 // Argo CD (ApplicationSet/systems-manifests.yaml) deploys that file.
 
 
 
-def user        = "hillel456"               // your name: Docker Hub user AND gitops file name
+def user        = "hillel456"               // Docker Hub user (required for docker login & image path)
 def appname     = "RecruitHub"
-def appimage    = "${user}/${appname.toLowerCase()}"      // docker.io/<user>/recruithub
+def appimage    = "${user}/${appname.toLowerCase()}"      // docker.io/hillel456/recruithub
 def apptag      = "${env.BUILD_NUMBER}"
 def envName     = "dev"
 def department  = "hr"
 
 def gitopsRepo  = "github.com/elevy99927-demos/gitops.git"
-def gitopsFile  = "systems/${department}/${envName}/${user}.yaml"
+def gitopsFile  = "systems/${department}/${envName}/${appname}.yaml"
 
 podTemplate(containers: [
       containerTemplate(name: 'jnlp', image: 'jenkins/inbound-agent', ttyEnabled: true),
@@ -73,10 +73,10 @@ podTemplate(containers: [
                     rm -rf gitops
                     git clone https://\${GIT_USER}:\${GIT_TOKEN}@${gitopsRepo} gitops
                     cd gitops
-                    git config user.name  "Jenkins (${user})"
+                    git config user.name  "Jenkins (${appname})"
                     git config user.email "elevy99927-demos@users.noreply.github.com"
 
-                    helm template ${user} "${env.WORKSPACE}/chart" \\
+                    helm template ${appname.toLowerCase()} "${env.WORKSPACE}/chart" \\
                         --set image.repository=${appimage} \\
                         --set image.tag=${apptag} \\
                         > ${gitopsFile}
@@ -86,7 +86,7 @@ podTemplate(containers: [
                         echo "No changes in ${gitopsFile} - nothing to deploy"
                         exit 0
                     fi
-                    git commit -m "Deploy ${appimage}:${apptag} to ${department}/${envName} (build ${env.BUILD_NUMBER}) \n Commited by ${user}"
+                    git commit -m "Deploy ${appimage}:${apptag} to ${department}/${envName} (build ${env.BUILD_NUMBER}) \n Commited by ${appname}"
 
                     git push origin HEAD:main
                 """
