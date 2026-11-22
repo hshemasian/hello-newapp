@@ -38,7 +38,7 @@ podTemplate(containers: [
             container('docker') {
                 // wait for dockerd (started by the dind container) to accept connections
                 sh '''
-                    for i in $(seq 1 3); do docker info >/dev/null 2>&1 && exit 0; sleep 2; done
+                    for i in $(seq 1 30); do docker info >/dev/null 2>&1 && exit 0; sleep 2; done
                     echo "docker daemon did not start"; docker info; exit 1
                 '''
                 echo "Building ${appimage}:${apptag}"
