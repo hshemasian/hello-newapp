@@ -5,12 +5,12 @@
 
 
 
-def user        = "elevy99927"              // your name: Docker Hub user AND gitops file name
-def appname     = "helloworld"
-def appimage    = "${user}/${appname}"      // docker.io/<user>/helloworld
+def user        = "hillel456"               // your name: Docker Hub user AND gitops file name
+def appname     = "RecruitHub"
+def appimage    = "${user}/${appname.toLowerCase()}"      // docker.io/<user>/recruithub
 def apptag      = "${env.BUILD_NUMBER}"
 def envName     = "dev"
-def department  = "devops"
+def department  = "hr"
 
 def gitopsRepo  = "github.com/elevy99927-demos/gitops.git"
 def gitopsFile  = "systems/${department}/${envName}/${user}.yaml"
@@ -24,8 +24,8 @@ podTemplate(containers: [
                         envVars: [envVar(key: 'DOCKER_TLS_CERTDIR', value: '')])   // no TLS inside the pod
   ])  {
     // Credentials come from Jenkins (Manage Jenkins -> Credentials), not from Kubernetes secrets:
-    //   docker-cred  : Username with password - <user> + Docker Hub access token
-    //   github-token : Username with password - elevy99927-demos + GitHub token (write access to gitops)
+    //   docker-creds       : Secret text - Docker Hub access token
+    //   github-credentials : Username with password - hshemasian + GitHub token (write access to gitops)
     node(POD_LABEL) {
         stage('checkout') {
             container('jnlp') {
@@ -50,10 +50,10 @@ podTemplate(containers: [
         stage('push') {
             container('docker') {
                 // TAGS: <BUILD_NUMBER> (immutable, deployed by GitOps) and latest
-                withCredentials([usernamePassword(credentialsId: 'docker-cred', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_TOKEN')]) {
+                withCredentials([string(credentialsId: 'docker-creds', variable: 'DOCKER_TOKEN')]) {
                     sh """
                         set -e
-                        echo "\$DOCKER_TOKEN" | docker login -u "\$DOCKER_USER" --password-stdin
+                        echo "\$DOCKER_TOKEN" | docker login -u "${user}" --password-stdin
                         docker push ${appimage}:${apptag}
                         docker push ${appimage}:latest
                         docker logout
@@ -65,7 +65,7 @@ podTemplate(containers: [
         stage('deploy') {
             container('deployer') {
                 echo "Rendering chart into ${gitopsRepo} -> ${gitopsFile}"
-                withCredentials([usernamePassword(credentialsId: 'github-token', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
+                withCredentials([usernamePassword(credentialsId: 'github-credentials', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
                 sh """#!/bin/sh
                     set -e
                     command -v git >/dev/null || apk add --no-cache git
